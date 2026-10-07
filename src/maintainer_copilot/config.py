@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     database_url: str
     github_token: str
+    target_repo: str = "pydantic/pydantic"
 
 
 settings = Settings()
