@@ -1,7 +1,7 @@
 import random
 import time
-import structlog
 
+import structlog
 from openai import OpenAI, RateLimitError
 
 from maintainer_copilot.config import settings
@@ -24,11 +24,22 @@ class LLMGateway:
         self._sleep = sleep
 
     def chat(self, messages, model=None):
+        response = self._call(self._client.chat.completions.create, messages, model)
+        return response.choices[0].message.content
+
+    def parse(self, messages, response_format, model=None):
+        """Return an instance of response_format (a Pydantic model) filled in by the LLM."""
+        response = self._call(
+            self._client.chat.completions.parse, messages, model, response_format=response_format
+        )
+        return response.choices[0].message.parsed
+
+    def _call(self, method, messages, model, **kwargs):
         model = model or settings.llm_model
         for attempt in range(1, MAX_ATTEMPTS + 1):
             started = time.perf_counter()
             try:
-                response = self._client.chat.completions.create(model=model, messages=messages)
+                response = method(model=model, messages=messages, **kwargs)
             except RateLimitError as error:
                 if attempt == MAX_ATTEMPTS:
                     log.error("llm.rate_limited.giving_up", model=model, attempts=attempt)
@@ -46,7 +57,7 @@ class LLMGateway:
                 output_tokens=response.usage.completion_tokens,
                 attempt=attempt,
             )
-            return response.choices[0].message.content
+            return response
 
     def _retry_delay(self, error, attempt):
         retry_after = error.response.headers.get("retry-after")

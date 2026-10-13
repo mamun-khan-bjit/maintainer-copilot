@@ -1,0 +1,31 @@
+[
+  {
+    "source_issue": 12393,
+    "url": "https://github.com/pydantic/pydantic/issues/12393",
+    "output": {
+      "kind": "bug",
+      "summary": "A ClassVar annotation that refers to a class defined later raises NameError on Python 3.14 without `from __future__ import annotations`.",
+      "labels": [
+        "bug V2",
+        "topic-annotations"
+      ],
+      "missing_info": [],
+      "evidence_quote": "asdf: ClassVar[Bar] # NameError: name 'Bar' is not defined",
+      "confidence": 0.9
+    }
+  },
+  {
+    "source_issue": 12044,
+    "url": "https://github.com/pydantic/pydantic/issues/12044",
+    "output": {
+      "kind": "question",
+      "summary": "Asks whether a field named `date` annotated as `Optional[date]` rejecting date values is expected behaviour.",
+      "labels": [
+        "question"
+      ],
+      "missing_info": [],
+      "evidence_quote": "date: Optional[date] = None",
+      "confidence": 0.8
+    }
+  }
+]
