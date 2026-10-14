@@ -11,6 +11,16 @@ def connect() -> psycopg.Connection:
     return psycopg.connect(settings.database_url)
 
 
+def record_llm_call(call: dict) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO llm_calls (request_id, task, model, input_tokens, output_tokens, cost_usd, latency_ms, attempt)"
+            " VALUES (%(request_id)s, %(task)s, %(model)s, %(input_tokens)s, %(output_tokens)s, %(cost_usd)s,"
+            " %(latency_ms)s, %(attempt)s)",
+            call,
+        )
+
+
 def migrate() -> None:
     """Apply every db/*.sql file that hasn't been applied yet, in filename order."""
     with connect() as conn:

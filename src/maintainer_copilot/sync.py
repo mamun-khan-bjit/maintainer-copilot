@@ -6,6 +6,7 @@ from psycopg.types.json import Jsonb
 from maintainer_copilot.config import settings
 from maintainer_copilot.db import connect
 from maintainer_copilot.github import GitHubClient
+from maintainer_copilot.log_config import configure_logging
 
 UPSERT_REPO = """
 INSERT INTO repos (full_name, license, default_branch) VALUES (%s, %s, %s)
@@ -121,6 +122,7 @@ def sync_docs(gh, conn, repo_id, full_name, branch):
 
 
 def main():
+    configure_logging()
     parser = argparse.ArgumentParser(description="Sync closed issues, their comments and docs/ into Postgres.")
     parser.add_argument("--repo", default=settings.target_repo)
     parser.add_argument("--max-issues", type=int, default=500)

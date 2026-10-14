@@ -11,6 +11,8 @@ from maintainer_copilot.config import settings
 from maintainer_copilot.db import connect
 from maintainer_copilot.gateway.llm import LLMGateway
 from maintainer_copilot.github import GitHubClient
+from maintainer_copilot.log_config import configure_logging, new_request_id
+from maintainer_copilot.redact import fingerprint
 
 PROMPT_VERSION = "v1"
 PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / f"triage.{PROMPT_VERSION}.md"
@@ -93,18 +95,20 @@ def validate(result: TriageResult, title: str, body: str, allowed_labels: list[s
     if dropped:
         log.warning("triage.labels_dropped", dropped=dropped)
     if not evidence_ok:
-        log.warning("triage.evidence_not_found", quote=quote[:120])
+        log.warning("triage.evidence_not_found", quote=fingerprint(quote))
     return {"dropped_labels": dropped, "evidence_ok": evidence_ok}
 
 
 def triage_issue(gateway: LLMGateway, title: str, body: str, labels: list[str]):
-    result = gateway.parse(build_messages(title, body, labels), TriageResult)
+    result = gateway.parse(build_messages(title, body, labels), TriageResult, task="triage")
     checks = validate(result, title, body, labels)
     return result, checks
 
 
 if __name__ == "__main__":
+    configure_logging()
     number = int(sys.argv[1])
+    structlog.contextvars.bind_contextvars(request_id=new_request_id(), issue=number)
     with connect() as conn:
         title, body = conn.execute("SELECT title, body FROM issues WHERE number = %s", (number,)).fetchone()
 

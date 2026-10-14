@@ -3,6 +3,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+import structlog
 from openai import LengthFinishReasonError
 from pydantic import ValidationError
 
@@ -10,6 +11,7 @@ from maintainer_copilot.config import settings
 from maintainer_copilot.db import connect
 from maintainer_copilot.gateway.llm import LLMGateway
 from maintainer_copilot.github import GitHubClient
+from maintainer_copilot.log_config import configure_logging, new_request_id
 from maintainer_copilot.triage import EXAMPLES_PATH, PROMPT_VERSION, fetch_labels, triage_issue
 
 SAMPLE_SIZE = 10
@@ -26,6 +28,7 @@ LIMIT %s
 
 
 def main():
+    configure_logging()
     excluded = [ex["source_issue"] for ex in json.loads(EXAMPLES_PATH.read_text())] + TUNING_ISSUES
     labels = fetch_labels(GitHubClient(settings.github_token), settings.target_repo)
     gateway = LLMGateway()
@@ -34,6 +37,7 @@ def main():
 
     rows = []
     for number, title, body, human_labels in issues:
+        structlog.contextvars.bind_contextvars(request_id=new_request_id(), issue=number)
         started = time.perf_counter()
         try:
             result, checks = triage_issue(gateway, title, body, labels)

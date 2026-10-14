@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+import structlog
 from openai import RateLimitError
 
 from maintainer_copilot.gateway.llm import LLMGateway
@@ -40,7 +41,7 @@ def make_gateway(outcomes):
     completions = FakeCompletions(outcomes)
     sleeps = []
     client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
-    gateway = LLMGateway(client=client, sleep=sleeps.append)
+    gateway = LLMGateway(client=client, sleep=sleeps.append, recorder=lambda call: None)
     return gateway, completions, sleeps
 
 
@@ -65,3 +66,32 @@ def test_gives_up_after_max_attempts():
         gateway.chat([{"role": "user", "content": "hi"}])
 
     assert completions.calls == 4
+
+def test_records_one_row_per_successful_call():
+    completions = FakeCompletions([rate_limit_error(), ok_response("hello")])
+    recorded = []
+    client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    gateway = LLMGateway(client=client, sleep=lambda seconds: None, recorder=recorded.append)
+
+    structlog.contextvars.bind_contextvars(request_id="req-test-1")
+    try:
+        gateway.chat([{"role": "user", "content": "hi"}], task="unit-test")
+    finally:
+        structlog.contextvars.clear_contextvars()
+
+    assert len(recorded) == 1  # the 429 attempt is not a billable call
+    call = recorded[0]
+    assert call["request_id"] == "req-test-1"
+    assert call["task"] == "unit-test"
+    assert call["attempt"] == 2
+    assert (call["input_tokens"], call["output_tokens"]) == (10, 2)
+
+
+def test_recording_failure_does_not_break_the_call():
+    def broken_recorder(call):
+        raise RuntimeError("database is down")
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions([ok_response("still fine")])))
+    gateway = LLMGateway(client=client, sleep=lambda seconds: None, recorder=broken_recorder)
+
+    assert gateway.chat([{"role": "user", "content": "hi"}]) == "still fine"
