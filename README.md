@@ -6,15 +6,28 @@ for approval before writing anything to GitHub.
 
 This is a learning project, built step by step.
 
-## Running locally
+## Run locally
+
+Prerequisites: [Docker](https://www.docker.com/), [uv](https://docs.astral.sh/uv/), and
+[Ollama](https://ollama.com/) with the model pulled (`ollama pull qwen2.5:3b`).
 
 ```bash
-cp .env.example .env            # then fill in the values
-docker compose up -d            # Postgres + pgvector and the API
-uv run python -m maintainer_copilot.db     # apply db/*.sql migrations
-uv run python -m maintainer_copilot.sync   # pull issues, comments and docs/
-curl localhost:8000/health
+cp .env.example .env                       # then set GITHUB_TOKEN (read-only, public repos)
+docker compose up -d --build               # Postgres + pgvector and the API on :8000
+uv run python -m maintainer_copilot.sync   # create tables, pull 500 issues, comments and docs/
 ```
+
+Try it (nothing is written to GitHub):
+
+```bash
+curl -s -X POST localhost:8000/triage/dry-run -H 'content-type: application/json' \
+  -d '{"issue_url": "https://github.com/pydantic/pydantic/issues/12223"}'
+```
+
+The first sync takes about 5 minutes. Run the tests with `uv run pytest`.
+
+Design decisions are recorded in [`docs/adr/`](docs/adr/), eval results in
+[`docs/evals.md`](docs/evals.md).
 
 ## Data sources and licensing
 

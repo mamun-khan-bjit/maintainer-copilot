@@ -25,6 +25,22 @@ def record_llm_call(call: dict) -> None:
         )
 
 
+def cost_for_request(request_id: str) -> tuple[int, float | None]:
+    """Return (number of LLM calls, total USD) for one request.
+
+    The total is None if any call had an unknown price: SQL's sum() silently skips NULLs,
+    which would under-report the cost.
+    """
+    with connect() as conn:
+        calls, priced, total = conn.execute(
+            "SELECT count(*), count(cost_usd), sum(cost_usd) FROM llm_calls WHERE request_id = %s",
+            (request_id,),
+        ).fetchone()
+    if calls == 0 or priced < calls:
+        return calls, None
+    return calls, float(total)
+
+
 def migrate() -> None:
     """Apply every db/*.sql file that hasn't been applied yet, in filename order."""
     with connect() as conn:

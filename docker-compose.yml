@@ -24,6 +24,8 @@ services:
     environment:
       # Inside the compose network the database is reached by its service name, not localhost.
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpass}@db:5432/postgres
+      # Ollama runs on the host machine, not in this container; Docker Desktop exposes the host as host.docker.internal.
+      LLM_BASE_URL: http://host.docker.internal:11434/v1
     ports:
       - "8000:8000"
     depends_on:

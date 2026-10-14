@@ -4,7 +4,7 @@ import time
 from psycopg.types.json import Jsonb
 
 from maintainer_copilot.config import settings
-from maintainer_copilot.db import connect
+from maintainer_copilot.db import connect, migrate
 from maintainer_copilot.github import GitHubClient
 from maintainer_copilot.log_config import configure_logging
 
@@ -147,6 +147,7 @@ def main():
     parser.add_argument("--max-issues", type=int, default=500)
     args = parser.parse_args()
 
+    migrate()  # safe to repeat: already-applied migrations are skipped
     started = time.monotonic()
     gh = GitHubClient(settings.github_token)
 
